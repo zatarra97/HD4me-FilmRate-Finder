@@ -1,8 +1,7 @@
 
-
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -27,7 +26,6 @@ public class CodeHD4ME {
 		int filmFoundOut = 0;		//Contiene il numero dei film che soddisfano i requisiti
 		String filmName;			//Contiene il nome del film
 		String filmLink;			//Contiene l'url del film 
-		String filmData;			//Contiene il nome del film, pagina, punteggio e url da inserire nel file
 		String rate = null;			//Contiene il punteggio che l'utente vorrebbe utilizzare come minimo
 		double checkRate = 0;		//Converte il valore della stringa checkRate
 		double totalRate = 0;			//Contiene il punteggio di ogni film analizzato nel sito
@@ -38,6 +36,7 @@ public class CodeHD4ME {
 		int startPage = 1;			//Numero della pagina iniziale, ha valore 1 se l'url non contiene una pagina di partenza 
 		int menuResult;				//Contiene il respondo del menu iniziale (ok/annulla)
 		boolean allRight = true;
+		String msg = null;			//Contiene il messaggio finale del programma al termine della ricerca
 		JTextField urlField = new JTextField(10);
 	    JTextField pageField = new JTextField(10);
 	    JTextField rateField = new JTextField(10);
@@ -179,9 +178,9 @@ public class CodeHD4ME {
 						filmFoundOut++;			//Aggiorna il contatore dei film trovati
 						
 						//TODO bisogna stampare su file con la stessa formattazione
-						System.out.printf("%-50s | %-22s | Voto: %-5.1f |\n", filmName, filmLink, totalRate);
-						filmData = filmName + filmLink + totalRate;
-						CreateFile (filmData);
+						System.out.printf("%-70s | %-22s | Voto: %-5.1f su 10 |\n", filmName, filmLink, totalRate);
+						//filmData = filmName + filmLink + totalRate;
+						CreateFile (filmName , filmLink , totalRate,1);
 					}
 					i++;
 				}
@@ -201,13 +200,13 @@ public class CodeHD4ME {
 				wait.until(ExpectedConditions.urlToBe(url + "/page/" + (startPage) ));
 				
 				pagesChecked++;
-				System.out.println("adesso sono a pagina: " + startPage);
 				
 				//Se non ci sono più pagine da controllare nonostante il numero immesso dall'utente non sia ancora arrivato a zero o se ci sono problemi:
 				}catch(Exception ex) {
 					driver.close();
 					if (filmFoundOut > 0) {
-						CreateFile ("\n\nHo analizzato " + pagesChecked + " pagine al posto di " + (pagesChecked + pagesToCheck) + "per un totale di " + (pagesChecked * 10) + " film, di cui " + filmFoundOut + " corrispondono ai tuoi criteri di ricerca.\n\n\n");
+						msg ="\n\nHo analizzato " + pagesChecked + " pagine al posto di " + (pagesChecked + pagesToCheck) + " per un totale di " + (pagesChecked * 10) + " film, di cui " + filmFoundOut + " corrispondono ai tuoi criteri di ricerca.\n\n\n";
+						CreateFile (msg , "" , 0 , 0);
 						JOptionPane.showMessageDialog(null, "<html><font face='Arial' size='5' color='black'>Ricerca terminata!<br>Ho analizzato " + pagesChecked + " pagine al posto di " + (pagesChecked + pagesToCheck) + ". (Fino a pag. " + startPage + ")<br>Per un totale di " + (pagesChecked * 10) + " film esaminati. <br><br>Ho trovato " + filmFoundOut + " Film che potrebbero interessarti. <br> Ho salvato i tuoi film nel file \"Lista Film\" sul Desktop.", "Ricerca Terminata", JOptionPane.INFORMATION_MESSAGE);
 					}else {
 						JOptionPane.showMessageDialog(null, "<html><font face='Arial' size='5' color='black'>Ricerca terminata!<br>Ho analizzato " + pagesChecked + " pagine al posto di " + (pagesChecked + pagesToCheck) + ". (Fino a pag. " + startPage + ")<br>Per un totale di " + (pagesChecked * 10) + " film esaminati. <br><br>Non ho trovato film per te con un punteggio di " + checkRate + " stelle o più.<br>Riprova con un punteggio minore.", "Ricerca Terminata", JOptionPane.INFORMATION_MESSAGE);
@@ -219,7 +218,8 @@ public class CodeHD4ME {
 		}while(pagesToCheck != 0);
 			driver.close();
 			if (filmFoundOut > 0) {
-				CreateFile ("\n\nHo analizzato " + pagesChecked + " pagine, per un totale di " + (pagesChecked * 10) + " film, di cui " + filmFoundOut + " corrispondono ai tuoi criteri di ricerca.\n\n\n");
+				msg = "\n\nHo analizzato " + pagesChecked + " pagine, per un totale di " + (pagesChecked * 10) + " film, di cui " + filmFoundOut + " corrispondono ai tuoi criteri di ricerca.\n\n\n";
+				CreateFile (msg , "" , 0 , 0);
 				JOptionPane.showMessageDialog(null, "<html><font face='Arial' size='5' color='black'>Ricerca terminata correttamente!<br>Ho analizzato " + pagesChecked + " pagine. (Fino a pag. " + startPage + ")<br>Per un totale di " + (pagesChecked * 10) + " film esaminati. <br><br>Ho trovato " + filmFoundOut + " Film che potrebbero interessarti. <br> Ho salvato i tuoi film nel file \"Lista Film\" sul Desktop.", "Ricerca Terminata", JOptionPane.INFORMATION_MESSAGE);
 			}else {
 				JOptionPane.showMessageDialog(null, "<html><font face='Arial' size='5' color='black'>Ricerca terminata correttamente!<br>Ho analizzato " + pagesChecked + " pagine. (Fino a pag. " + startPage + ")<br>Per un totale di " + (pagesChecked * 10) + " film esaminati. <br><br>Non ho trovato film per te con un punteggio di "+ checkRate + " stelle o più.<br>Riprova con un punteggio minore.", "Ricerca Terminata", JOptionPane.INFORMATION_MESSAGE);
@@ -313,26 +313,27 @@ public class CodeHD4ME {
 	}
 	
 	
-	public static void CreateFile (String text) {
+	public static void CreateFile (String name,String link, double rate, int filmOrMsg) {
 		String desktopPath = System.getProperty("user.home");
 		String fileName = desktopPath + "\\Desktop\\Lista Film HD4ME.txt";
-		PrintWriter outputStream = null;
-		
-		try {			
-			//Crea un nuovo file solo se non esiste già, altrimenti aggiunge in coda il testo
-			outputStream = new PrintWriter (new FileOutputStream (fileName, true));
-		}catch (FileNotFoundException e) {
-			System.out.println("Errore nell'apertura del file");
-			JOptionPane.showMessageDialog(null, "<html><font face='Arial' size='5' color='black'>Non riesco a creare e/o accedere al File sul Desktop", "Errore", JOptionPane.ERROR_MESSAGE);
-			System.exit(0);    
-		}
-		//Inserisce nel file i dati e lo chiude
-		outputStream.println(text);
-		outputStream.close();
-		System.out.println("File scritto correttamente");	
-	}
 	
-
+		try {
+			PrintWriter pw = new PrintWriter(new FileOutputStream(
+					new File(fileName), 
+					true /* append = true */)); 
+			if (filmOrMsg == 1) {    
+				pw.append(String.format("%-70s | %-22s | Voto: %-5.1f su 10 |\n", name, link, rate));
+			}else {
+				pw.append(name);		
+			}
+			pw.close();
+		}catch (IOException e) {
+			System.out.println("Problemi con il file");
+			JOptionPane.showMessageDialog(null, "<html><font face='Arial' size='5' color='black'>Problemi nella scrittura del file", "Errore", JOptionPane.ERROR_MESSAGE);
+			e.printStackTrace();
+			System.exit(0);
+		}
+	}
 }//Fine classe
 
 
